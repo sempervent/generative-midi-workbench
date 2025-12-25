@@ -1,205 +1,254 @@
-# Project Template
+# MIDINecromancer
 
-A clean, stack-agnostic GitHub template repository with MkDocs (Material theme) for documentation, automatic GitHub Pages deployment, and quality-of-life defaults.
+A full-stack generative MIDI composition workbench that lets you create, edit, and play back MIDI compositions in the browser. The system uses music theory constraints (circle-of-fifths, diatonic harmony) to generate intelligent drum patterns, chord progressions, basslines, and melodies.
 
 ## Features
 
-- 📚 **MkDocs with Material theme** - Modern, responsive documentation
-- 🚀 **GitHub Pages deployment** - Automatic deployment via GitHub Actions
-- 🔧 **Pre-commit hooks** - Keep the repo clean with automated checks
-  - YAML/JSON linting, markdown formatting, Python docstring checks
-  - Conventional commits enforcement with Commitizen
-- ✨ **Conventional Commits** - Structured commit messages with Commitizen
-- 🤖 **Dependabot** - Automated dependency updates for Actions and Docker
-- 📝 **Issue templates** - Structured bug reports and feature requests
-- 🐳 **Docker support** - Dockerized local docs for tool-agnostic teams
-- ⚙️ **Makefile** - Simple commands for common tasks
-- 🔍 **CI Workflows** - Automated linting and validation on every PR
+- 🎹 **Project Management**: Create and manage multiple composition projects
+- 🎵 **Music Theory-Driven Generation**:
+  - Drum patterns with Euclidean rhythms and variation
+  - Chord progressions using circle-of-fifths motion
+  - Basslines that follow chord roots with syncopation
+  - Melodies constrained to scales with stepwise motion
+- 🎛️ **Interactive UI**:
+  - Circle-of-fifths key selector
+  - Piano roll visualization
+  - Chord timeline display
+  - Real-time playback (Web MIDI + Tone.js fallback)
+- 💾 **PostgreSQL Storage**: All compositions stored in database
+- 🎼 **MIDI Export**: Export compositions as Standard MIDI Files (.mid)
+- 🔄 **Reproducible**: Deterministic generation with seed-based RNG
 
-## Using this template
+## Tech Stack
 
-1. Click **Use this template** → **Create a new repository**.
+### Backend
+- **Python 3.12+** with `uv` for package management
+- **FastAPI** for REST API
+- **SQLAlchemy 2.0** (async) for database ORM
+- **Alembic** for schema migrations
+- **PostgreSQL** for data storage
+- **mido** for MIDI file generation
 
-2. Edit `mkdocs.yml` (update `site_name`, `repo_url`, `site_url`, and `repo_name`) and the pages under `docs/`.
+### Frontend
+- **Vue 3** with TypeScript
+- **Vite** for build tooling
+- **Pinia** for state management
+- **Tone.js** for audio playback
+- **Web MIDI API** support (when available)
 
-3. Configure GitHub Pages:
-   - Go to **Settings** → **Pages**
-   - Under **Build and deployment**, select **Source: GitHub Actions**
-   - After the first push to `main`, your site will auto-deploy
+## Prerequisites
 
-4. Push to `main`. GitHub Pages will auto-deploy via Actions.
+- Python 3.12+
+- Node.js 18+
+- Docker and Docker Compose (for PostgreSQL)
+- `uv` (Python package manager) - install from [https://github.com/astral-sh/uv](https://github.com/astral-sh/uv)
 
-5. Install development tools (optional but recommended):
+## Setup
 
-   ```bash
-   # Install pre-commit (for hooks)
-   pip install pre-commit
-   make install-hooks
+### Option A: Docker Compose (Recommended)
 
-   # Install Commitizen (for conventional commits and versioning)
-   pip install commitizen
-   # Or with pipx
-   pipx install commitizen
-   ```
+The easiest way to run MIDINecromancer is using Docker Compose with dev or prod profiles.
 
-6. Local preview:
-
-   ```bash
-   # Option A: pipx (recommended)
-   pipx install mkdocs-material
-   mkdocs serve
-   
-   # Option B: pip
-   python -m pip install --upgrade pip
-   pip install mkdocs mkdocs-material
-   mkdocs serve
-   
-   # Option C: Docker
-   docker build -t mkdocs-local -f Dockerfile.docs .
-   docker run --rm -it -p 8000:8000 -v "$PWD":/site mkdocs-local
-   ```
-
-## Quick Start Commands
+#### Development
 
 ```bash
-# Build documentation
-make docs
+# Copy environment file
+cp .env.example .env
 
-# Start local development server
-make dev
-
-# Run pre-commit checks
-make check
-
-# Install pre-commit hooks (run once)
-make install-hooks
-
-# Commit using conventional commits (interactive)
-make commit
-
-# Bump version (creates tag and updates CHANGELOG)
-make version
-
-# Generate changelog from commits
-make changelog
+# Start all services with hot reload
+make docker-dev
+# or
+docker compose --profile dev up --build
 ```
 
-## Quality of Life Features
+This starts:
+- PostgreSQL database
+- Backend with hot reload (http://localhost:8000)
+- Frontend with Vite HMR (http://localhost:5173)
+- Automatic migrations before backend starts
 
-### Conventional Commits with Commitizen
-
-This template includes [Commitizen](https://commitizen-tools.readthedocs.io/) for enforcing conventional commits:
+#### Production
 
 ```bash
-# Use the interactive commit helper
-make commit
+# Copy and configure .env
+cp .env.example .env
+# Edit .env with production values
 
-# Or install the hook to enforce on every commit
-make install-hooks
+# Start production services
+make docker-prod
+# or
+docker compose --profile prod up --build -d
 ```
 
-Commit types follow [Conventional Commits](https://www.conventionalcommits.org/):
-- `feat`: A new feature
-- `fix`: A bug fix
-- `docs`: Documentation only changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `perf`: Performance improvements
-- `test`: Adding or updating tests
-- `build`: Build system changes
-- `ci`: CI configuration changes
-- `chore`: Other changes
+See [Docker Setup Guide](docs/docker.md) for detailed information.
 
-### Pre-commit Hooks
+### Option B: Local Development
 
-Automatic checks run before commits:
-- ✅ YAML/JSON validation and linting
-- ✅ Markdown linting and formatting
-- ✅ Python docstring style checks (Google convention)
-- ✅ Conventional commit message validation
-- ✅ Large file detection
-- ✅ Private key detection
-- ✅ Merge conflict detection
-
-Install hooks:
-```bash
-make install-hooks
-```
-
-### Automated Version Management
-
-Bump versions and generate changelogs automatically:
+#### 1. Start PostgreSQL
 
 ```bash
-# Bump version (patch/minor/major based on commits)
-make version
-
-# Generate CHANGELOG.md from commit history
-make changelog
+docker compose up -d db
 ```
 
-### Dependabot
+This starts a PostgreSQL container on port 5432.
 
-Automatically keep dependencies updated:
-- ✅ GitHub Actions updates (weekly)
-- ✅ Docker image updates (weekly)
-- ✅ Python dependencies (when added - uncomment in `.github/dependabot.yml`)
+### 3. Backend Setup
 
-### CI/CD Workflows
+```bash
+cd backend
 
-- **`docs-lint.yml`**: Lints markdown files and validates MkDocs config on PRs
-- **`pre-commit.yml`**: Runs full pre-commit checks in CI
-- **`pages.yml`**: Builds and deploys documentation to GitHub Pages
+# Install dependencies with uv
+uv sync
+
+# Set up environment (create .env file)
+cat > .env << EOF
+DATABASE_URL=postgresql+asyncpg://midinecromancer:midinecromancer@localhost:5432/midinecromancer
+ENVIRONMENT=development
+DEBUG=true
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+EOF
+
+# Run database migrations
+uv run alembic upgrade head
+
+# Start the backend server
+uv run uvicorn midinecromancer.main:app --reload --port 8000
+```
+
+The API will be available at `http://localhost:8000`. API documentation at `http://localhost:8000/docs`.
+
+### 4. Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`.
+
+## Usage
+
+### Creating a Project
+
+1. Open the application in your browser
+2. Click "New Project"
+3. Enter a project name
+4. Configure key, mode, BPM, time signature, and number of bars
+
+### Generating Content
+
+1. Open a project in the composer view
+2. Use the generation buttons:
+   - **Full**: Generates all parts (drums, chords, bass, melody)
+   - **Drums**: Generates drum pattern only
+   - **Chords**: Generates chord progression only
+   - **Bass**: Generates bassline (requires chords first)
+   - **Melody**: Generates melody only
+
+### Playing Back
+
+1. Click the play button (▶) in the transport controls
+2. The composition will play using Tone.js (WebAudio) or Web MIDI if available
+
+### Exporting
+
+1. Click "Export MIDI" in the header
+2. The composition will be downloaded as a `.mid` file
 
 ## Project Structure
 
 ```
-project-template/
-├── docs/                    # Documentation source files
-│   ├── index.md
-│   └── getting-started.md
-├── .github/
-│   ├── workflows/
-│   │   ├── pages.yml       # GitHub Pages deployment workflow
-│   │   ├── docs-lint.yml   # Documentation linting workflow
-│   │   └── pre-commit.yml  # Pre-commit checks in CI
-│   ├── ISSUE_TEMPLATE/      # Issue templates
-│   ├── CODEOWNERS          # Code ownership rules
-│   └── dependabot.yml      # Dependabot configuration
-├── .pre-commit-config.yaml  # Pre-commit hooks configuration
-├── .cz.toml                # Commitizen configuration
-├── .markdownlint.json      # Markdown linting rules
-├── mkdocs.yml             # MkDocs configuration
-├── Makefile                 # Common tasks
-├── Dockerfile.docs         # Docker image for local docs
-├── .editorconfig          # Editor configuration
-├── .gitignore             # Git ignore rules
-├── CHANGELOG.md           # Auto-generated changelog
-├── LICENSE                # MIT License
-└── README.md              # This file
+midinecromancer/
+├── backend/
+│   ├── src/midinecromancer/
+│   │   ├── api/          # FastAPI routes
+│   │   ├── db/           # Database configuration
+│   │   ├── models/       # SQLAlchemy models
+│   │   ├── schemas/      # Pydantic schemas
+│   │   ├── services/     # Business logic
+│   │   ├── music/        # Music theory & generation
+│   │   └── midi/         # MIDI export
+│   ├── alembic/          # Database migrations
+│   └── tests/            # Unit tests
+├── frontend/
+│   ├── src/
+│   │   ├── api/          # API client
+│   │   ├── components/   # Vue components
+│   │   ├── views/        # Page views
+│   │   ├── stores/       # Pinia stores
+│   │   └── music/        # Playback engine
+│   └── package.json
+├── docker-compose.yml
+└── README.md
 ```
 
-## Customization
+## API Endpoints
 
-### Adding More Documentation Pages
+### Projects
+- `POST /api/v1/projects` - Create project
+- `GET /api/v1/projects` - List projects
+- `GET /api/v1/projects/{id}` - Get project
+- `PATCH /api/v1/projects/{id}` - Update project
+- `GET /api/v1/projects/{id}/arrangement` - Get full arrangement
 
-1. Create new `.md` files in the `docs/` directory
-2. Add them to the `nav` section in `mkdocs.yml`
+### Generation
+- `POST /api/v1/projects/{id}/generate/full` - Generate full arrangement
+- `POST /api/v1/projects/{id}/generate/drums` - Generate drums
+- `POST /api/v1/projects/{id}/generate/chords` - Generate chords
+- `POST /api/v1/projects/{id}/generate/bass` - Generate bass
+- `POST /api/v1/projects/{id}/generate/melody` - Generate melody
 
-### Adding Language-Specific Files
+### Export
+- `GET /api/v1/projects/{id}/export/midi` - Export as MIDI file
+- `GET /api/v1/projects/{id}/export/json` - Export as JSON
 
-This template is intentionally stack-agnostic. You can add language-specific files after creating a repo from the template:
+## Testing
 
-- **Python**: Add `requirements.txt`, `setup.py`, or `pyproject.toml`
-- **Node.js**: Add `package.json`, `package-lock.json`
-- **Rust**: Add `Cargo.toml`
-- etc.
+```bash
+cd backend
+uv run pytest
+```
 
-### Versioned Documentation
+Tests include:
+- Music theory utilities
+- Deterministic generation (same seed = same output)
+- MIDI export validation
 
-To add versioning to your documentation later, consider using the [mike](https://github.com/jimporter/mike) plugin for MkDocs.
+## Development
+
+### Running Migrations
+
+```bash
+cd backend
+uv run alembic upgrade head        # Apply migrations
+uv run alembic revision --autogenerate -m "description"  # Create new migration
+```
+
+### Code Quality
+
+The backend uses `ruff` for linting (optional):
+
+```bash
+cd backend
+uv run ruff check src/
+uv run ruff format src/
+```
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see LICENSE file for details.
 
+## Contributing
+
+This is an MVP implementation. Future enhancements could include:
+- More sophisticated music theory (borrowed chords, modal interchange)
+- Advanced rhythm patterns
+- MIDI editing in the UI
+- Multiple clips per track
+- Effects and processing
+- Collaboration features

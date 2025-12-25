@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # Base service: PostgreSQL database
+  db:
+    image: postgres:16-alpine
+    container_name: midinecromancer-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-midinecromancer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-midinecromancer}
+      POSTGRES_DB: ${POSTGRES_DB:-midinecromancer}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-midinecromancer}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Dev profile: Migration runner
+  migrate-dev:
+    profiles: ["dev"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: midinecromancer-migrate-dev
+    command: uv run alembic upgrade head
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-midinecromancer}:${POSTGRES_PASSWORD:-midinecromancer}@db:5432/${POSTGRES_DB:-midinecromancer}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+
+  # Dev profile: Backend with hot reload
+  backend-dev:
+    profiles: ["dev"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: midinecromancer-backend-dev
+    command: uv run uvicorn midinecromancer.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-midinecromancer}:${POSTGRES_PASSWORD:-midinecromancer}@db:5432/${POSTGRES_DB:-midinecromancer}
+      ENVIRONMENT: development
+      DEBUG: "true"
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate-dev:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Dev profile: Frontend with hot reload
+  frontend-dev:
+    profiles: ["dev"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: midinecromancer-frontend-dev
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      VITE_API_URL: http://backend-dev:8000
+      DOCKER: "true"
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    working_dir: /app
+    depends_on:
+      - backend-dev
+    restart: unless-stopped
+
+  # Prod profile: Migration runner
+  migrate:
+    profiles: ["prod"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: prod
+    container_name: midinecromancer-migrate
+    command: alembic upgrade head
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-midinecromancer}:${POSTGRES_PASSWORD:-midinecromancer}@db:5432/${POSTGRES_DB:-midinecromancer}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # Prod profile: Backend with gunicorn
+  backend:
+    profiles: ["prod"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: prod
+    container_name: midinecromancer-backend
+    command: gunicorn midinecromancer.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-midinecromancer}:${POSTGRES_PASSWORD:-midinecromancer}@db:5432/${POSTGRES_DB:-midinecromancer}
+      ENVIRONMENT: production
+      DEBUG: "false"
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
+  # Prod profile: Frontend static server
+  frontend:
+    profiles: ["prod"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: prod
+      args:
+        BACKEND_URL: http://backend:8000
+    container_name: midinecromancer-frontend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

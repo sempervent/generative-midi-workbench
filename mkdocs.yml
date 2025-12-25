@@ -15,6 +15,11 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Docker Setup: docker.md
+  - Playback: playback.md
+  - Polyrhythms: polyrhythms.md
+  - Polyrhythm Lanes: polyrhythm_lanes.md
+  - Theory Overlay & Suggestions: suggestions.md
 
 markdown_extensions:
   - admonition
