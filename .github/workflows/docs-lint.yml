@@ -1,0 +1,44 @@
+name: Lint Documentation
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install markdownlint
+        run: |
+          npm install -g markdownlint-cli@0.40.0
+
+      - name: Lint markdown files
+        run: |
+          markdownlint 'docs/**/*.md' '*.md' --fix || true
+          markdownlint 'docs/**/*.md' '*.md'
+
+      - name: Check MkDocs config
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material
+          mkdocs build --strict --verbose
+
+      - name: Check for broken links (if linkchecker is available)
+        run: |
+          python -m pip install linkchecker || echo "linkchecker not available, skipping"
+

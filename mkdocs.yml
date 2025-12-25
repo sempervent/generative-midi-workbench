@@ -1,0 +1,30 @@
+site_name: Your Project
+site_description: Starter template with MkDocs.
+site_url: https://<your-org-or-user>.github.io/<your-repo>/
+repo_url: https://github.com/<your-org-or-user>/<your-repo>
+repo_name: <your-repo>
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - content.code.copy
+    - content.action.edit # shows "Edit this page" if repo_url set
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+plugins:
+  - search
+# Add more later (e.g., mkdocstrings) without changing the template's core.
+

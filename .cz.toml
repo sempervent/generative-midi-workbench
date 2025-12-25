@@ -1,0 +1,73 @@
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.0.1"
+tag_format = "v$version"
+version_files = []
+
+[tool.commitizen.customize]
+message_template = "{{change_type}}({{scope}}): {{subject}}"
+example = "feat(scope): Add new feature"
+schema = "<type>(<scope>): <subject>"
+bump_pattern = "^(break|feat|fix|perf)"
+bump_map = { "break" = "MAJOR", "feat" = "MINOR", "fix" = "PATCH", "perf" = "PATCH" }
+commit_parser_options = { "header_pattern" = "^(.+?)(?:\\s+#(.+))?$" }
+change_type_map = {
+  "feat" = "Features",
+  "fix" = "Bug Fixes",
+  "perf" = "Performance Improvements",
+  "revert" = "Reverts",
+  "docs" = "Documentation",
+  "style" = "Styles",
+  "refactor" = "Code Refactoring",
+  "test" = "Tests",
+  "build" = "Build System",
+  "ci" = "Continuous Integration",
+  "chore" = "Chores"
+}
+
+[tool.commitizen.customize.questions]
+  [[tool.commitizen.customize.questions]]
+    type = "list"
+    name = "change_type"
+    choices = [
+      { value = "feat", name = "feat: A new feature" },
+      { value = "fix", name = "fix: A bug fix" },
+      { value = "docs", name = "docs: Documentation only changes" },
+      { value = "style", name = "style: Changes that do not affect the meaning of the code" },
+      { value = "refactor", name = "refactor: A code change that neither fixes a bug nor adds a feature" },
+      { value = "perf", name = "perf: A code change that improves performance" },
+      { value = "test", name = "test: Adding missing tests or correcting existing tests" },
+      { value = "build", name = "build: Changes that affect the build system or external dependencies" },
+      { value = "ci", name = "ci: Changes to CI configuration files and scripts" },
+      { value = "chore", name = "chore: Other changes that don't modify src or test files" },
+      { value = "revert", name = "revert: Reverts a previous commit" }
+    ]
+    message = "Select the type of change that you're committing:"
+
+  [[tool.commitizen.customize.questions]]
+    type = "input"
+    name = "scope"
+    message = "What is the scope of this change (e.g., component or file name):\n"
+    filter = { type = "lowercase", strip = true }
+
+  [[tool.commitizen.customize.questions]]
+    type = "input"
+    name = "subject"
+    message = "Write a short, imperative tense description of the change:\n"
+    validate = { type = "min_length", value = 10 }
+    filter = { type = "strip" }
+
+  [[tool.commitizen.customize.questions]]
+    type = "input"
+    name = "body"
+    message = "Provide a longer description of the change (optional). Use \"|\" to break new line:\n"
+    filter = { type = "strip" }
+    optional = true
+
+  [[tool.commitizen.customize.questions]]
+    type = "input"
+    name = "footer"
+    message = "List any issue closed by this change (e.g., \"Fixes #123\"):\n"
+    filter = { type = "strip" }
+    optional = true
+
