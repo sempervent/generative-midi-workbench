@@ -59,3 +59,19 @@ async def toggle_track_mute(
     await session.commit()
     await session.refresh(track)
     return TrackResponse.model_validate(track)
+
+
+@router.patch("/{track_id}/solo", response_model=TrackResponse)
+async def toggle_track_solo(
+    track_id: UUID,
+    soloed: bool,
+    session: AsyncSession = Depends(get_session),
+) -> TrackResponse:
+    """Toggle track solo state."""
+    track = await session.get(Track, track_id)
+    if not track:
+        raise HTTPException(status_code=404, detail="Track not found")
+    track.is_soloed = soloed
+    await session.commit()
+    await session.refresh(track)
+    return TrackResponse.model_validate(track)

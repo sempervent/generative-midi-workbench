@@ -3,7 +3,10 @@
     <div class="header">
       <button @click="$router.push('/projects')">← Back</button>
       <h1>{{ project?.name || 'Loading...' }}</h1>
-      <button class="primary" @click="exportMidi">Export MIDI</button>
+      <div class="export-controls">
+        <button class="primary" @click="exportZip">Export ZIP</button>
+        <button class="secondary" @click="exportMidi">Export MIDI</button>
+      </div>
     </div>
 
     <div v-if="loading" class="loading">Loading...</div>
@@ -82,6 +85,7 @@
             v-if="project"
             :model-value="selectedPolyrhythmProfile"
             :project-id="project.id"
+            :bpm="project.bpm || 120"
             @update:model-value="selectedPolyrhythmProfile = $event"
           />
         </div>
@@ -144,29 +148,88 @@
         </div>
 
         <div class="arrangement">
-          <div
-            v-for="track in arrangement?.tracks || []"
-            :key="track.id"
-            class="track"
-          >
-            <div class="track-header">
-              <span>{{ track.name }}</span>
-              <label>
-                <input
-                  type="checkbox"
-                  :checked="!track.is_muted"
-                  @change="toggleMute(track.id, !track.is_muted)"
-                />
-                Mute
-              </label>
-            </div>
-            <PianoRoll :track="track" :bpm="project?.bpm || 120" />
+          <div v-if="!arrangement || !arrangement.tracks || arrangement.tracks.length === 0" class="empty-arrangement">
+            <p>No tracks yet. Use the Generate buttons to create content.</p>
           </div>
+          <template v-else>
+            <!-- Chords Lane (special rendering) -->
+            <div v-if="chordsTrack" class="track">
+              <div class="track-header">
+                <span>{{ chordsTrack.name }}</span>
+                <label>
+                  <input
+                    type="checkbox"
+                    :checked="!chordsTrack.is_muted"
+                    @change="toggleMute(chordsTrack.id, !chordsTrack.is_muted)"
+                  />
+                  Mute
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    :checked="chordsTrack.is_soloed"
+                    @change="toggleSolo(chordsTrack.id, !chordsTrack.is_soloed)"
+                  />
+                  Solo
+                </label>
+              </div>
+              <ChordLane
+                :arrangement="arrangement"
+                :bpm="project?.bpm || 120"
+                :time-signature-num="project?.time_signature_num || 4"
+                :time-signature-den="project?.time_signature_den || 4"
+                @chord-click="handleChordClick"
+              />
+            </div>
+
+            <!-- Other tracks -->
+            <div
+              v-for="track in nonChordsTracks"
+              :key="track.id"
+              class="track"
+            >
+              <div class="track-header">
+                <span>{{ track.name }}</span>
+                <label>
+                  <input
+                    type="checkbox"
+                    :checked="!track.is_muted"
+                    @change="toggleMute(track.id, !track.is_muted)"
+                  />
+                  Mute
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    :checked="track.is_soloed"
+                    @change="toggleSolo(track.id, !track.is_soloed)"
+                  />
+                  Solo
+                </label>
+              </div>
+              <PianoRoll
+                :track="track"
+                :bpm="project?.bpm || 120"
+                :time-signature-num="project?.time_signature_num || 4"
+                :time-signature-den="project?.time_signature_den || 4"
+              />
+            </div>
+          </template>
         </div>
       </div>
 
       <!-- Right Panel -->
       <div class="right-panel">
+        <div class="section">
+          <h3>Arrangement</h3>
+          <ArrangementPanel
+            v-if="project"
+            :project-id="project.id"
+            :time-signature-num="project.time_signature_num || 4"
+            @card-click="handleArrangementCardClick"
+          />
+        </div>
+
         <div class="section">
           <h3>Chord Timeline</h3>
           <ChordTimeline :arrangement="arrangement" />
@@ -174,12 +237,24 @@
 
         <div class="section">
           <TheoryOverlayPanel
+            v-if="project"
             :project="project"
             @suggestions-committed="handleSuggestionsCommitted"
           />
         </div>
       </div>
     </div>
+
+    <!-- Chord Editor -->
+    <ChordEditor
+      :chord="selectedChord"
+      :is-open="chordEditorOpen"
+      :beats-per-bar="project?.time_signature_num || 4"
+      :bpm="project?.bpm || 120"
+      :project-id="project?.id"
+      @close="handleChordEditorClose"
+      @saved="handleChordSaved"
+    />
   </div>
 </template>
 
@@ -188,6 +263,9 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { projectsApi } from "../api/projects";
 import { tracksApi } from "../api/tracks";
+import ArrangementPanel from "../components/ArrangementPanel.vue";
+import ChordEditor from "../components/ChordEditor.vue";
+import ChordLane from "../components/ChordLane.vue";
 import ChordTimeline from "../components/ChordTimeline.vue";
 import CircleOfFifths from "../components/CircleOfFifths.vue";
 import PianoRoll from "../components/PianoRoll.vue";
@@ -196,7 +274,7 @@ import TheoryOverlayPanel from "../components/TheoryOverlayPanel.vue";
 import { usePlayback } from "../music/playback";
 import { computeProjectLengthBars } from "../music/transportLoop";
 import { useProjectStore } from "../stores/project";
-import type { PlaybackRange, PlaybackState, PolyrhythmProfile } from "../types";
+import type { ChordEvent, PlaybackRange, PlaybackState, PolyrhythmProfile } from "../types";
 
 const route = useRoute();
 const store = useProjectStore();
@@ -207,6 +285,12 @@ const arrangement = computed(() => store.currentArrangement);
 const loading = computed(() => store.loading);
 const isPlaying = ref(false);
 const selectedPolyrhythmProfile = ref<PolyrhythmProfile | null>(null);
+
+// Computed properties for tracks
+const chordsTrack = computed(() => arrangement.value?.tracks.find((t) => t.role === "chords"));
+const nonChordsTracks = computed(
+  () => arrangement.value?.tracks.filter((t) => t.role !== "chords") || []
+);
 
 // Playback state
 const playbackState = ref<PlaybackState>({
@@ -386,6 +470,10 @@ function updateTimeSigDen(e: Event) {
 async function generate(kind: string) {
   if (!project.value) return;
   await store.generate(kind);
+  // Refresh arrangement to show newly generated content (chords, etc.)
+  if (project.value) {
+    await store.loadArrangement(project.value.id);
+  }
 }
 
 async function toggleMute(trackId: string, muted: boolean) {
@@ -397,6 +485,18 @@ async function toggleMute(trackId: string, muted: boolean) {
   } catch (error) {
     console.error("Failed to toggle mute:", error);
     alert("Failed to toggle mute");
+  }
+}
+
+async function toggleSolo(trackId: string, soloed: boolean) {
+  if (!project.value) return;
+  try {
+    await tracksApi.toggleSolo(trackId, soloed);
+    // Reload arrangement to get updated state
+    await store.loadArrangement(project.value.id);
+  } catch (error) {
+    console.error("Failed to toggle solo:", error);
+    alert("Failed to toggle solo");
   }
 }
 
@@ -448,6 +548,23 @@ function stop() {
   playbackState.value.isPlaying = false;
 }
 
+async function exportZip() {
+  if (!project.value) return;
+  try {
+    const blob = await projectsApi.exportZip(project.value.id, "track");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    // Filename will be set by backend Content-Disposition header
+    a.download = `${project.value.name}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Export failed:", error);
+    alert("Failed to export ZIP");
+  }
+}
+
 async function exportMidi() {
   if (!project.value) return;
   try {
@@ -469,6 +586,34 @@ async function handleSuggestionsCommitted() {
   if (project.value) {
     await store.loadArrangement(project.value.id);
   }
+}
+
+const selectedChord = ref<ChordEvent | null>(null);
+const chordEditorOpen = ref(false);
+
+function handleChordClick(chord: ChordEvent) {
+  selectedChord.value = chord;
+  chordEditorOpen.value = true;
+}
+
+async function handleChordSaved(chord: ChordEvent) {
+  // Refresh arrangement to show updated chord
+  if (project.value) {
+    await store.loadArrangement(project.value.id);
+  }
+  chordEditorOpen.value = false;
+  selectedChord.value = null;
+}
+
+function handleChordEditorClose() {
+  chordEditorOpen.value = false;
+  selectedChord.value = null;
+}
+
+function handleArrangementCardClick(segment: ArrangementSegment) {
+  // Popover is now handled by ArrangementPanel component
+  // This handler is kept for compatibility but doesn't need to do anything
+  // as the popover opens automatically on card click
 }
 </script>
 
@@ -492,6 +637,20 @@ async function handleSuggestionsCommitted() {
 .header h1 {
   flex: 1;
   font-size: 24px;
+}
+
+.export-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.export-controls .secondary {
+  background-color: #555;
+  color: white;
+}
+
+.export-controls .secondary:hover {
+  background-color: #666;
 }
 
 .composer-layout {
@@ -624,6 +783,13 @@ async function handleSuggestionsCommitted() {
   margin-left: 10px;
   color: #aaa;
   font-size: 12px;
+}
+
+.empty-arrangement {
+  padding: 40px;
+  text-align: center;
+  color: #666;
+  font-size: 16px;
 }
 
 .arrangement {

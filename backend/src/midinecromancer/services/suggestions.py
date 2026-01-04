@@ -183,8 +183,6 @@ class SuggestionService:
             # Find or create chords track
             chords_track = next((t for t in tracks if t.role == "chords"), None)
             if not chords_track:
-                from midinecromancer.models.track import Track
-
                 chords_track = Track(
                     project_id=run.project_id,
                     name="Chords",
@@ -224,8 +222,6 @@ class SuggestionService:
             # Similar to above but multiple events
             chords_track = next((t for t in tracks if t.role == "chords"), None)
             if not chords_track:
-                from midinecromancer.models.track import Track
-
                 chords_track = Track(
                     project_id=run.project_id,
                     name="Chords",
@@ -266,7 +262,6 @@ class SuggestionService:
             track_role = commit_plan["track_role"]
             track = next((t for t in tracks if t.role == track_role), None)
             if not track:
-                from midinecromancer.models.track import Track
 
                 track = Track(
                     project_id=run.project_id,

@@ -169,8 +169,9 @@ async function handleAudition(suggestion: Suggestion) {
   const ticksPerBar = quarterNotesPerBar * PPQ;
   const secondsPerTick = 60 / (props.project.bpm * PPQ);
 
-  // Schedule events with Tone.js
-  await Tone.start();
+  // Schedule events with Tone.js (only on user gesture)
+  const { ensureAudioStarted } = await import("../audio/ensureAudio");
+  await ensureAudioStarted();
 
   const synth = new Tone.PolySynth(Tone.Synth).toDestination();
   const scheduleId = Tone.now();

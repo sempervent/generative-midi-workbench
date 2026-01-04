@@ -56,13 +56,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import * as Tone from "tone";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { polyrhythmsApi } from "../api/polyrhythms";
 import type { PolyrhythmProfile } from "../types";
 
 const props = defineProps<{
   modelValue: PolyrhythmProfile | null;
   projectId: string;
+  bpm?: number;
 }>();
 
 const emit = defineEmits<{
@@ -113,10 +115,28 @@ function loadProfile() {
   }
 }
 
+let previewPart: Tone.Part | null = null;
+let previewSynth: Tone.Synth | null = null;
+
 async function preview() {
   if (!localProfile.value.steps || !localProfile.value.pulses) return;
 
+  // Stop any existing preview
+  if (previewPart) {
+    previewPart.stop();
+    previewPart.dispose();
+    previewPart = null;
+  }
+  if (previewSynth) {
+    previewSynth.dispose();
+    previewSynth = null;
+  }
+
   try {
+    // Ensure AudioContext is started (only on user gesture)
+    const { ensureAudioStarted } = await import("../audio/ensureAudio");
+    await ensureAudioStarted();
+
     const events = await polyrhythmsApi.preview(props.projectId, {
       steps: localProfile.value.steps,
       pulses: localProfile.value.pulses,
@@ -124,8 +144,74 @@ async function preview() {
       cycle_beats: localProfile.value.cycle_beats || 4.0,
       swing: localProfile.value.swing,
     });
-    console.log("Preview events:", events);
-    // TODO: Visualize preview in piano roll
+
+    if (events.length === 0) {
+      console.warn("No preview events returned");
+      return;
+    }
+
+    // Get project BPM from prop or default
+    const bpm = props.bpm || 120;
+    const PPQ = 480;
+    const secondsPerTick = 60 / (bpm * PPQ);
+
+    // Create synth
+    previewSynth = new Tone.Synth().toDestination();
+
+    // Convert events to Tone.Part format
+    const toneEvents = events.map((event) => {
+      const startTime = event.start_tick * secondsPerTick;
+      return {
+        time: startTime,
+        note: {
+          pitch: event.pitch,
+          velocity: event.velocity / 127,
+          duration: Math.max(event.duration_tick * secondsPerTick, 0.1),
+        },
+      };
+    });
+
+    // Create and start Tone.Part
+    previewPart = new Tone.Part((time, event) => {
+      if (previewSynth) {
+        const freq = Tone.Frequency(event.note.pitch, "midi").toFrequency();
+        previewSynth.triggerAttackRelease(freq, event.note.duration, time, event.note.velocity);
+      }
+    }, toneEvents);
+
+    previewPart.start(0);
+    Tone.Transport.start();
+
+    // Auto-stop after cycle completes (or 8 seconds max)
+    const cycleBeats = localProfile.value.cycle_beats || 4.0;
+    const cycleSeconds = (cycleBeats * 60) / bpm;
+    const maxDuration = Math.max(cycleSeconds * 2, 8);
+
+    setTimeout(() => {
+      if (previewPart) {
+        previewPart.stop();
+        previewPart.dispose();
+        previewPart = null;
+      }
+      if (previewSynth) {
+        previewSynth.dispose();
+        previewSynth = null;
+      }
+      Tone.Transport.stop();
+    }, maxDuration * 1000);
+
+    // Debug logging
+    if (
+      import.meta.env.DEV ||
+      localStorage.getItem("midinecromancer:debug:polyrhythm") === "true"
+    ) {
+      console.log("[Polyrhythm Preview]", {
+        eventsCount: events.length,
+        cycleBeats,
+        toneEventsCount: toneEvents.length,
+        firstEvent: toneEvents[0],
+      });
+    }
   } catch (error) {
     console.error("Preview failed:", error);
   }
@@ -159,7 +245,26 @@ watch(
   { immediate: true }
 );
 
-loadProfiles();
+// Load profiles on mount
+onMounted(async () => {
+  await nextTick();
+  await loadProfiles();
+});
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (previewPart) {
+    previewPart.stop();
+    previewPart.dispose();
+    previewPart = null;
+  }
+  if (previewSynth) {
+    previewSynth.dispose();
+    previewSynth = null;
+  }
+  Tone.Transport.stop();
+  Tone.Transport.cancel();
+});
 </script>
 
 <style scoped>

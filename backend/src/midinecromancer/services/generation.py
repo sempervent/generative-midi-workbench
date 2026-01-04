@@ -12,6 +12,7 @@ from midinecromancer.music import (
     generate_drum_pattern,
     generate_melody,
 )
+from midinecromancer.music.drums import DrumMap, generate_drum_pattern_v2
 from midinecromancer.music.theory import PPQ
 from midinecromancer.models.chord_event import ChordEvent
 from midinecromancer.models.clip import Clip
@@ -83,19 +84,57 @@ class GenerationService:
         # Clear existing clips
         await self._clear_track_clips(track.id)
 
-        # Generate pattern
-        events = generate_drum_pattern(
+        # Get drum map profile if specified
+        drum_map = DrumMap()  # Default GM mapping
+        if params.get("drum_map_profile_id"):
+            from midinecromancer.models.drum_map_profile import DrumMapProfile
+
+            profile = await self.session.get(DrumMapProfile, params["drum_map_profile_id"])
+            if profile:
+                drum_map = DrumMap(
+                    kick_note=profile.kick_note,
+                    snare_note=profile.snare_note,
+                    clap_note=profile.clap_note,
+                    closed_hat_note=profile.closed_hat_note,
+                    open_hat_note=profile.open_hat_note,
+                    rim_note=profile.rim_note,
+                    perc_notes=profile.perc_notes,
+                )
+
+        # Generate pattern using new engine
+        events = generate_drum_pattern_v2(
             bars=project.bars,
             time_signature_num=project.time_signature_num,
             time_signature_den=project.time_signature_den,
             seed=actual_seed,
-            pattern_type=params.get("pattern_type", "full"),
+            drum_map=drum_map,
+            style=params.get("style", "boom_bap"),
             swing=params.get("swing", 0.0),
-            variation=params.get("variation", 0.1),
+            density=params.get("density", 0.7),
+            hat_mode=params.get("hat_mode", "straight_16"),
+            ghost_notes=params.get("ghost_notes", True),
+            pause_probability=params.get("pause_probability", 0.0),
+            pause_scope=params.get("pause_scope", "kick"),
+            variation_intensity=params.get("variation_intensity", 0.3),
         )
 
         # Create clip and notes
-        clip = Clip(track_id=track.id, start_bar=0, length_bars=project.bars)
+        clip = Clip(
+            track_id=track.id,
+            start_bar=0,
+            length_bars=project.bars,
+            drum_map_profile_id=params.get("drum_map_profile_id"),
+        )
+        # Store drum params in clip.params
+        clip.params = {
+            "style": params.get("style", "boom_bap"),
+            "swing": params.get("swing", 0.0),
+            "density": params.get("density", 0.7),
+            "hat_mode": params.get("hat_mode", "straight_16"),
+            "ghost_notes": params.get("ghost_notes", True),
+            "pause_probability": params.get("pause_probability", 0.0),
+            "variation_intensity": params.get("variation_intensity", 0.3),
+        }
         self.session.add(clip)
         await self.session.flush()
 
@@ -106,6 +145,7 @@ class GenerationService:
                 velocity=event["velocity"],
                 start_tick=event["start_tick"],
                 duration_tick=event["duration_tick"],
+                probability=1.0,
             )
             self.session.add(note)
 
@@ -166,12 +206,25 @@ class GenerationService:
             self.session.add(clip)
             await self.session.flush()
 
+            duration_beats = (
+                chord["length_bars"] * (project.time_signature_num * 4) / project.time_signature_den
+            )
             chord_event = ChordEvent(
                 clip_id=clip.id,
                 start_tick=0,
                 duration_tick=chord["length_bars"] * ticks_per_bar,
+                duration_beats=duration_beats,
                 roman_numeral=chord["roman_numeral"],
                 chord_name=chord["chord_name"],
+                intensity=0.85,
+                voicing="root",
+                inversion=0,
+                strum_ms=0,
+                humanize_ms=0,
+                velocity_jitter=0,
+                timing_jitter_ms=0,
+                is_enabled=True,
+                is_locked=False,
             )
             self.session.add(chord_event)
 

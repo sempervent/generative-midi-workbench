@@ -42,4 +42,12 @@ export const projectsApi = {
     });
     return response.data;
   },
+
+  async exportZip(id: string, splitBy: "track" | "clip" = "track"): Promise<Blob> {
+    const response = await api.get(`/projects/${id}/export/zip`, {
+      params: { split_by: splitBy },
+      responseType: "blob",
+    });
+    return response.data;
+  },
 };

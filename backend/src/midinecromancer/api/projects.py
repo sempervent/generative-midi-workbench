@@ -123,6 +123,7 @@ async def get_arrangement(
                     length_bars=clip.length_bars,
                     is_muted=clip.is_muted,
                     is_soloed=clip.is_soloed,
+                    start_offset_ticks=clip.start_offset_ticks,
                     notes=note_responses,
                     chord_events=chord_responses,
                 )
@@ -135,6 +136,8 @@ async def get_arrangement(
                 midi_channel=track.midi_channel,
                 midi_program=track.midi_program,
                 is_muted=track.is_muted,
+                is_soloed=track.is_soloed,
+                start_offset_ticks=track.start_offset_ticks,
                 clips=clip_responses,
             )
         )

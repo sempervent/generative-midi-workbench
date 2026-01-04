@@ -3,7 +3,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from midinecromancer.db.base import Base
@@ -26,8 +27,16 @@ class Clip(Base):
     polyrhythm_profile_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("polyrhythm_profiles.id", ondelete="SET NULL"), nullable=True
     )  # Legacy: deprecated in favor of lanes, kept for backward compatibility
+    drum_map_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("drum_map_profiles.id", ondelete="SET NULL"), nullable=True
+    )
     is_muted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_soloed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    start_offset_ticks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    intensity: Mapped[float] = mapped_column(
+        Float, nullable=False, default=1.0, server_default="1.0"
+    )
+    params: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     # Relationships
@@ -48,4 +57,10 @@ class Clip(Base):
         back_populates="clip",
         cascade="all, delete-orphan",
         order_by="ClipPolyrhythmLane.order_index",
+    )
+    chord_settings: Mapped["ClipChordSettings | None"] = relationship(
+        "ClipChordSettings", back_populates="clip", uselist=False, cascade="all, delete-orphan"
+    )
+    drum_map_profile: Mapped["DrumMapProfile | None"] = relationship(
+        "DrumMapProfile", back_populates="clips"
     )

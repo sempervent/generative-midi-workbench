@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 import mido
 
+from midinecromancer.music.offsets import apply_offsets_to_tick
 from midinecromancer.music.theory import PPQ
 from midinecromancer.services.playback_filter import (
     filter_tracks_for_playback,
@@ -66,9 +67,14 @@ def export_project_to_midi(project: "Project", tracks: list["Track"]) -> bytes:
         note_events = []
         for clip in filtered_clips:
             clip_start_tick = clip.start_bar * ticks_per_bar
+            # Apply offsets
+            clip_offset = clip.start_offset_ticks
+            track_offset = track_model.start_offset_ticks
             for note in clip.notes:
-                # Ensure tick values are integers (should already be, but validate)
-                start_tick = int(round(clip_start_tick + note.start_tick))
+                # Calculate base tick position
+                base_tick = clip_start_tick + note.start_tick
+                # Apply offsets
+                start_tick = int(round(apply_offsets_to_tick(base_tick, clip_offset, track_offset)))
                 duration_tick = int(round(note.duration_tick))
                 note_events.append(
                     {

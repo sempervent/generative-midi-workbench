@@ -17,9 +17,16 @@ nav:
   - Getting Started: getting-started.md
   - Docker Setup: docker.md
   - Playback: playback.md
+  - Export: export.md
+  - Chords: chords.md
+  - Arrangement Panel: arrangement.md
+  - Segment Generation: segments.md
+  - Regenerate: regenerate.md
   - Polyrhythms: polyrhythms.md
   - Polyrhythm Lanes: polyrhythm_lanes.md
+  - Drums: drums.md
   - Theory Overlay & Suggestions: suggestions.md
+  - Troubleshooting: troubleshooting.md
 
 markdown_extensions:
   - admonition

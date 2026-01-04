@@ -22,6 +22,8 @@ class ClipResponse(BaseModel):
     length_bars: int
     is_muted: bool
     is_soloed: bool
+    intensity: float = 1.0
+    params: dict = {}
     created_at: datetime
 
     class Config:

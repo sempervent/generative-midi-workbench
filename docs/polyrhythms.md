@@ -31,8 +31,22 @@ In MIDINecromancer, polyrhythms are defined using **Polyrhythm Profiles** that s
    - **Cycle Beats**: How many beats the cycle spans (e.g., 4.0 beats)
    - **Swing**: Optional swing amount (0.0-1.0)
 
-5. Click "Preview" to hear the pattern
+5. Click "Preview" to hear the pattern (plays audio in browser using Tone.js)
 6. Click "Save Profile" to persist it
+
+## Preview Behavior
+
+The preview button creates a `Tone.Part` and schedules all polyrhythm events with correct timing. The preview:
+
+- Automatically starts the AudioContext on user gesture
+- Plays the pattern using a synth for each lane
+- Stops automatically after the cycle completes (or 8 seconds max)
+- Respects mute/solo settings if previewing within a clip context
+
+If preview doesn't play, check:
+- Browser console for AudioContext warnings
+- Ensure you've clicked the preview button (user gesture required)
+- Check debug logs with `localStorage.setItem('midinecromancer:debug:polyrhythm', 'true')`
 
 ### Example: 3:2 Clave Pattern
 

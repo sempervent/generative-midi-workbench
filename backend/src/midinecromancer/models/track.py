@@ -23,6 +23,8 @@ class Track(Base):
     midi_channel: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     midi_program: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-127
     is_muted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_soloed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    start_offset_ticks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     # Relationships

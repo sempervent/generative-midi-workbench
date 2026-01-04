@@ -26,8 +26,31 @@ class ChordEventInArrangement(BaseModel):
     id: UUID
     start_tick: int
     duration_tick: int
+    duration_beats: float
     roman_numeral: str
     chord_name: str
+    intensity: float
+    voicing: str
+    inversion: int
+    strum_ms: int  # Deprecated, use strum_beats
+    humanize_ms: int  # Deprecated, use humanize_beats
+    strum_beats: float
+    humanize_beats: float
+    pattern_type: str = "block"
+    duration_gate: float = 0.85
+    velocity_curve: str = "flat"
+    comp_pattern: dict | None = None
+    strum_direction: str = "down"
+    strum_spread: float = 1.0
+    retrigger: bool = False
+    offset_beats: float = 0.0
+    strum_curve: str = "linear"
+    hit_params: dict | None = None
+    velocity_jitter: int
+    timing_jitter_ms: int
+    is_enabled: bool
+    is_locked: bool
+    grid_quantum: float | None
 
     class Config:
         from_attributes = True
@@ -41,6 +64,9 @@ class ClipInArrangement(BaseModel):
     length_bars: int
     is_muted: bool
     is_soloed: bool
+    start_offset_ticks: int
+    intensity: float = 1.0
+    params: dict = {}
     notes: list[NoteInArrangement]
     chord_events: list[ChordEventInArrangement]
 
@@ -57,6 +83,8 @@ class TrackInArrangement(BaseModel):
     midi_channel: int
     midi_program: int
     is_muted: bool
+    is_soloed: bool
+    start_offset_ticks: int
     clips: list[ClipInArrangement]
 
     class Config:

@@ -1,74 +1,138 @@
 <template>
   <div class="chord-timeline">
-    <div
-      v-for="chord in chords"
-      :key="chord.id"
-      class="chord-item"
-    >
-      <div class="roman">{{ chord.roman_numeral }}</div>
-      <div class="name">{{ chord.chord_name }}</div>
+    <div class="timeline-header">
+      <h4>Chord Timeline</h4>
+      <button class="add-btn" @click="handleAddChord" title="Add chord">+</button>
     </div>
-    <div v-if="chords.length === 0" class="empty">
-      No chords generated yet
+    <div class="timeline-content">
+      <div
+        v-for="chord in sortedChords"
+        :key="chord.id"
+        class="timeline-item"
+      >
+        <ChordCard
+          :chord="chord"
+          :beats-per-bar="beatsPerBar"
+          @update="handleChordUpdate"
+          @delete="handleChordDelete"
+        />
+      </div>
+      <div v-if="sortedChords.length === 0" class="empty">
+        No chords generated yet. Click "Generate Chords" to create a progression.
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { Arrangement } from "../types";
+import type { Arrangement, ChordEvent } from "../types";
+import ChordCard from "./ChordCard.vue";
 
 const props = defineProps<{
   arrangement: Arrangement | null;
 }>();
 
-const chords = computed(() => {
+const emit = defineEmits<(e: "chord-updated") => void>();
+
+const beatsPerBar = computed(() => {
+  if (!props.arrangement) return 4;
+  return (props.arrangement.time_signature_num * 4) / props.arrangement.time_signature_den;
+});
+
+const sortedChords = computed(() => {
   if (!props.arrangement) return [];
-  const allChords: Array<{ id: string; roman_numeral: string; chord_name: string }> = [];
+  const allChords: ChordEvent[] = [];
+  const PPQ = 480;
+  const quarterNotesPerBar = beatsPerBar.value;
+  const ticksPerBar = quarterNotesPerBar * PPQ;
+
   for (const track of props.arrangement.tracks) {
     if (track.role === "chords") {
       for (const clip of track.clips) {
         for (const chord of clip.chord_events) {
-          allChords.push(chord);
+          // Calculate absolute start position for sorting
+          const absoluteStartTick = clip.start_bar * ticksPerBar + chord.start_tick;
+          allChords.push({
+            ...chord,
+            start_tick: absoluteStartTick,
+          });
         }
       }
     }
   }
-  return allChords;
+  return allChords.sort((a, b) => a.start_tick - b.start_tick);
 });
+
+function handleChordUpdate(chord: ChordEvent) {
+  emit("chord-updated");
+}
+
+function handleChordDelete(chordId: string) {
+  emit("chord-updated");
+}
+
+function handleAddChord() {
+  // TODO: Open add chord dialog
+  console.log("Add chord clicked");
+}
 </script>
 
 <style scoped>
 .chord-timeline {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  height: 100%;
 }
 
-.chord-item {
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #444;
+}
+
+.timeline-header h4 {
+  margin: 0;
+  color: #fff;
+  font-size: 16px;
+}
+
+.add-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #4ecdc4;
   background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 4px;
-  padding: 12px;
-}
-
-.roman {
-  font-size: 18px;
-  font-weight: bold;
   color: #4ecdc4;
-  margin-bottom: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 }
 
-.name {
-  font-size: 14px;
-  color: #aaa;
+.add-btn:hover {
+  background: #4ecdc4;
+  color: #000;
+}
+
+.timeline-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.timeline-item {
+  margin-bottom: 10px;
 }
 
 .empty {
   text-align: center;
   color: #666;
-  padding: 20px;
+  padding: 40px 20px;
   font-size: 14px;
 }
 </style>
-

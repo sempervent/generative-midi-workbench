@@ -39,9 +39,60 @@ export interface ChordEvent {
   clip_id: string;
   start_tick: number;
   duration_tick: number;
+  duration_beats: number;
   roman_numeral: string;
   chord_name: string;
+  intensity: number;
+  voicing: string;
+  inversion: number;
+  strum_ms?: number | null; // Deprecated, use strum_beats
+  humanize_ms?: number | null; // Deprecated, use humanize_beats
+  strum_beats: number;
+  humanize_beats: number;
+  duration_gate: number;
+  velocity_jitter: number;
+  timing_jitter_ms: number;
+  is_enabled: boolean;
+  is_locked: boolean;
+  grid_quantum?: number | null;
   created_at: string;
+  // Pattern fields
+  pattern_type: "block" | "strum" | "comp" | "arp" | "stabs";
+  velocity_curve: "flat" | "down" | "up" | "swell" | "dip";
+  comp_pattern?: {
+    grid: string;
+    steps: number[];
+    accent: number[];
+    swing: number;
+  } | null;
+  strum_direction: "down" | "up" | "alternate" | "random";
+  strum_spread: number;
+  retrigger: boolean;
+  // New fields
+  offset_beats: number;
+  strum_curve: "linear" | "ease_in" | "ease_out";
+  hit_params?: {
+    // Stabs mode
+    hits?: number;
+    spacing?: string; // "1/8", "1/16", "1/32"
+    skip_prob?: number;
+    vel_curve?: string;
+    // Comp mode
+    source?: "diatonic" | "euclidean" | "polyrhythm";
+    euclid_steps?: number;
+    euclid_pulses?: number;
+    euclid_rotation?: number;
+    polyrhythm_profile_id?: string;
+    swing?: number;
+    humanize?: number;
+    // Arp mode
+    dir?: "up" | "down" | "up-down" | "random";
+    rate?: string; // "1/8", "1/16", "1/32"
+    octaves?: number;
+    latch?: boolean;
+    // Strum mode (additional to existing strum fields)
+    tightness?: number;
+  } | null;
 }
 
 export interface PolyrhythmProfile {
@@ -150,4 +201,63 @@ export interface PlaybackState {
   isPlaying: boolean;
   loopEnabled: boolean; // default true
   range: PlaybackRange; // default {kind:"project"}
+}
+
+export interface ChordGenRun {
+  id: string;
+  project_id: string;
+  clip_id: string | null;
+  bar_start: number;
+  bar_end: number;
+  seed: number;
+  params: Record<string, any>;
+  suggestions: ChordGenSuggestion[];
+}
+
+export interface ChordGenSuggestion {
+  id: string;
+  rank: number;
+  score: number;
+  title: string | null;
+  explanation: string | null;
+  progression: ChordProgressionItem[];
+  locks: Record<string, any> | null;
+}
+
+export interface ChordProgressionItem {
+  roman_numeral: string;
+  chord_name: string;
+  start_bar: number;
+  length_bars: number;
+  duration_beats?: number;
+  intensity?: number;
+  voicing?: string;
+  inversion?: number;
+  pattern_type?: string;
+  duration_gate?: number;
+  velocity_curve?: string;
+  comp_pattern?: {
+    grid: string;
+    steps: number[];
+    accent: number[];
+    swing: number;
+  };
+  strum_direction?: string;
+  strum_spread?: number;
+  retrigger?: boolean;
+  strum_beats?: number;
+  humanize_beats?: number;
+}
+
+export interface ChordGenParams {
+  style?: "guitar" | "piano" | "pads";
+  complexity?: number;
+  tension?: number;
+  harmonic_rhythm?: "1chord/bar" | "2chords/bar" | "slow" | "custom";
+  progression_style?: "pop" | "rap_minor" | "jazzy" | "modal" | "circle_fifths";
+  cadence_ending?: boolean;
+}
+
+export interface ChordLockSpec {
+  [key: string]: string;
 }

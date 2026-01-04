@@ -119,13 +119,20 @@ async def render_clip_lanes_to_notes(
     )
 
     # Convert to Note objects
+    # Note: events from render_lanes_to_events have absolute tick positions
+    # We need to convert to relative ticks within the clip
     notes = []
+    quarter_notes_per_bar = (project.time_signature_num * 4) / project.time_signature_den
+    ticks_per_bar = int(quarter_notes_per_bar * 480)  # PPQ
+    clip_start_tick = clip.start_bar * ticks_per_bar
+
     for event in events:
-        # Calculate relative tick within clip
-        quarter_notes_per_bar = (project.time_signature_num * 4) / project.time_signature_den
-        ticks_per_bar = int(quarter_notes_per_bar * 480)  # PPQ
-        clip_start_tick = clip.start_bar * ticks_per_bar
-        relative_tick = event["start_tick"] - clip_start_tick
+        # Events have absolute tick positions, convert to relative
+        absolute_tick = event["start_tick"]
+        relative_tick = absolute_tick - clip_start_tick
+
+        # Note: Offsets are applied during export/playback, not here
+        # This keeps the stored notes clean and allows offset changes without regeneration
 
         note = Note(
             clip_id=clip.id,
